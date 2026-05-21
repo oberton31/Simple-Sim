@@ -1,16 +1,16 @@
-#include "physics_engine.h"
+#include "sim.h"
 
 #include <iostream>
 #include <tuple>
 
 int main()
 {
-    physics::PhysicsEngine eng("scene.json");
+    sim::Simulator eng("scene.json");
 
     // Find torso and hip joint
-    physics::Link* torso = nullptr;
-    physics::Link* thigh = nullptr;
-    physics::Joint* hip = nullptr;
+    sim::Link* torso = nullptr;
+    sim::Link* thigh = nullptr;
+    sim::Joint* hip = nullptr;
 
     for (auto* link : eng.links())
     {

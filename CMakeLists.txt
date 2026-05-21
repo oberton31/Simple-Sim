@@ -10,6 +10,6 @@ include_directories(
 file(COPY test/scene.json DESTINATION ${CMAKE_BINARY_DIR})
 
 add_executable(simple-sim
-    src/physics_engine.cpp
+    src/sim.cpp
     test/test.cpp
 )
