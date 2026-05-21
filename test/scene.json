@@ -1,0 +1,36 @@
+{
+  "links": [
+    {
+      "name": "torso",
+      "type": "RECTANGLE",
+      "mass": 10.0,
+      "d1": 0.5,
+      "d2": 1.2
+    },
+    {
+      "name": "thigh",
+      "type": "CIRCLE",
+      "mass": 3.5,
+      "d1": 0.2
+    }
+  ],
+  "joints": [
+    {
+      "name": "hip_joint",
+      "parent": "torso",
+      "child": "thigh",
+      "control_type": "POSITION",
+      "joint_type": "REVOLUTE",
+      "offset": {
+        "x": 0.0,
+        "y": -0.6,
+        "theta": 0.0
+      },
+      "limit_min": -1.57,
+      "limit_max": 1.57,
+      "kp": 400.0,
+      "kd": 40.0,
+      "axis": 0
+    }
+  ]
+}
