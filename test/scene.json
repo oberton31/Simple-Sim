@@ -1,36 +1,75 @@
 {
   "links": [
     {
-      "name": "torso",
+      "name": "link1",
       "type": "RECTANGLE",
-      "mass": 10.0,
-      "d1": 0.5,
-      "d2": 1.2
+      "mass": 2.0,
+      "d1": 1.0,
+      "d2": 0.1
     },
     {
-      "name": "thigh",
-      "type": "CIRCLE",
-      "mass": 3.5,
-      "d1": 0.2
+      "name": "link2",
+      "type": "RECTANGLE",
+      "mass": 1.5,
+      "d1": 0.8,
+      "d2": 0.1
+    },
+    {
+      "name": "link3",
+      "type": "RECTANGLE",
+      "mass": 1.5,
+      "d1": 0.5,
+      "d2": 0.1
     }
   ],
   "joints": [
     {
-      "name": "hip_joint",
-      "parent": "torso",
-      "child": "thigh",
+      "name": "shoulder_joint",
+      "parent": "world",
+      "child": "link1",
       "control_type": "POSITION",
       "joint_type": "REVOLUTE",
       "offset": {
         "x": 0.0,
-        "y": -0.6,
+        "y": 0.0,
         "theta": 0.0
       },
-      "limit_min": -1.57,
-      "limit_max": 1.57,
+      "limit_min": -3.14,
+      "limit_max": 3.14,
       "kp": 400.0,
-      "kd": 40.0,
-      "axis": 0
+      "kd": 40.0
+    },
+    {
+      "name": "elbow_joint",
+      "parent": "link1",
+      "child": "link2",
+      "control_type": "POSITION",
+      "joint_type": "REVOLUTE",
+      "offset": {
+        "x": 0.5,
+        "y": 0.0,
+        "theta": 0.0
+      },
+      "limit_min": -2.57,
+      "limit_max": 2.57,
+      "kp": 300.0,
+      "kd": 30.0
+    },
+    {
+      "name": "wrist_joint",
+      "parent": "link2",
+      "child": "link3",
+      "control_type": "POSITION",
+      "joint_type": "REVOLUTE",
+      "offset": {
+        "x": 0.4,
+        "y": 0.0,
+        "theta": 0.0
+      },
+      "limit_min": -2.57,
+      "limit_max": 2.57,
+      "kp": 300.0,
+      "kd": 30.0
     }
   ]
 }

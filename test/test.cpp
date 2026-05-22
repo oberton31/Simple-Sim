@@ -5,51 +5,21 @@
 
 int main()
 {
-    sim::Simulator eng("scene.json");
-
-    // Find torso and hip joint
-    sim::Link* torso = nullptr;
-    sim::Link* thigh = nullptr;
-    sim::Joint* hip = nullptr;
-
-    for (auto* link : eng.links())
+    sim::Simulator eng("scene.json", true, 10, 5, 100);
+    eng.reset({M_PI / 4, -M_PI / 4, M_PI / 4});
+    auto c = eng.check_collisions();
+    for (const auto &contact : c)
     {
-        if (link->name == "torso")
-            torso = link;
-
-        if (link->name == "thigh")
-            thigh = link;
+        std::cout << "Collision between " << contact.link_a->name << " and " << contact.link_b->name << std::endl;
+        std::cout << "Penetration depth: " << contact.penetration_depth << std::endl;
+        std::cout << "Contact point: (" << contact.contact_point.first << ", " << contact.contact_point.second << ")" << std::endl;
+        std::cout << "Contact normal: (" << contact.contact_normal.first << ", " << contact.contact_normal.second << ")" << std::endl;
+        std::cout << "Contact tangent: (" << contact.contact_tangent.first << ", " << contact.contact_tangent.second << ")" << std::endl;
     }
-
-    for (auto* joint : eng.joints())
+    while (true)
     {
-        if (joint->name == "hip_joint")
-            hip = joint;
+        eng._render_frame();
     }
-
-    // Set floating-base/root pose manually
-    torso->frame = {0.0, 0.5, 0.0};
-
-    // Rotate thigh downward by 45 degrees
-    hip->qpos = -0.785398; // -pi/4
-
-    // Run FK
-    eng._fk();
-
-    auto [tx, ty, tt] = torso->frame;
-    auto [hx, hy, ht] = thigh->frame;
-
-    std::cout << "\n=== FK RESULT ===\n";
-
-    std::cout << "Torso:\n";
-    std::cout << "  x: " << tx
-              << "  y: " << ty
-              << "  theta: " << tt << "\n";
-
-    std::cout << "Thigh:\n";
-    std::cout << "  x: " << hx
-              << "  y: " << hy
-              << "  theta: " << ht << "\n";
 
     return 0;
 }

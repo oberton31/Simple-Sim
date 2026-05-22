@@ -21,6 +21,7 @@ Simple physics engine for a 2D environment
 #include <cmath>
 #include <limits>
 #include <set>
+#include <SFML/Graphics.hpp>
 
 using json = nlohmann::json;
 using Frame = std::tuple<double, double, double>;
@@ -140,7 +141,8 @@ namespace sim
     class Simulator
     {
     public:
-        Simulator(std::string scene_file);
+        // render width and height: meters, render scale: how many pixels per meter
+        Simulator(std::string scene_file, bool render, double render_width=10.0, double render_height=5.0, double render_scale = 100);
         ~Simulator();
 
         // PUBLIC API
@@ -150,12 +152,12 @@ namespace sim
         const int nu() const { return _nu; }
         // void step(double dt); // updates sim
         // void set_control(std::vector<double> ctrl);
+        void reset(std::vector<double> qpos);
         // void reset(std::vector<double> qpos, std::vector<double> qvel);
 
         // moving here for testing. Move back in end
         void _fk(); // compute forward kinematics to recalculate all link frames
-        std::vector<Link *> &links() { return _links; }
-        std::vector<Joint *> &joints() { return _joints; }
+        void _render_frame();
 
     private:
         std::unordered_map<Link *, std::vector<std::pair<Link *, Joint *>>> _tf_tree; // keeps track of basic tree structure in form of adjacency list
@@ -167,6 +169,13 @@ namespace sim
         int _nu;           // number of actuated joints
 
         std::unordered_map<int, Joint *> _joint_id_map; // map joint pointer to index such that we can index into qpos, qvel, ctrl
+
+        // rendering
+        bool _render;
+        double _render_width;
+        double _render_height;
+        double _render_scale;
+        sf::RenderWindow *_window;
 
         bool _rectangle_rectangle_collision_check(Link *link_a, Link *link_b, Contact &contact);
         bool _circle_circle_collision_check(Link *link_a, Link *link_b, Contact &contact);

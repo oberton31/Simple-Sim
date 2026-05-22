@@ -3,7 +3,7 @@
 namespace sim
 {
     // PUBLIC API
-    Simulator::Simulator(std::string scene_file)
+    Simulator::Simulator(std::string scene_file, bool render, double render_width, double render_height, double render_scale) : _render(render), _render_width(render_width), _render_height(render_height), _render_scale(render_scale)
     {
         std::ifstream f(scene_file);
         if (!f.is_open())
@@ -148,6 +148,11 @@ namespace sim
         {
             throw std::runtime_error("Error building model structure: " + std::string(e.what()));
         }
+
+        if (_render)
+        {
+            _window = new sf::RenderWindow(sf::VideoMode(_render_width * _render_scale, _render_height * _render_scale), "Simple Sim");
+        }
     }
 
     std::vector<Contact> Simulator::check_collisions()
@@ -178,9 +183,30 @@ namespace sim
                 }
             }
         }
+
+        for (auto link : _links)
+        {
+            Contact c;
+            if (!_connected_links.count({link, _world_link}) && _check_world_collision(link, c))
+                contacts.push_back(c);
+        }
         // check for contacts with world link
 
         return contacts;
+    }
+
+    void Simulator::reset(std::vector<double> qpos)
+    {
+        if (qpos.size() != static_cast<size_t>(_nu))
+        {
+            throw std::invalid_argument("Invalid number of joint positions provided.");
+        }
+        for (size_t i = 0; i < qpos.size(); ++i)
+        {
+            Joint *joint = _joint_id_map[i];
+            joint->qpos = qpos[i];
+        }
+        _fk();
     }
 
     Simulator::~Simulator()
@@ -643,7 +669,7 @@ namespace sim
                 if (corner.second < lowest_y)
                 {
                     lowest_y = corner.second;
-                    surface_point = corner; 
+                    surface_point = corner;
                 }
             }
         }
@@ -653,8 +679,8 @@ namespace sim
             return false;
         }
 
-        contact.link_a = _world_link;               // World acts as the parent anchor
-        contact.link_b = link;                      // robot link is child
+        contact.link_a = _world_link; // World acts as the parent anchor
+        contact.link_b = link;        // robot link is child
         contact.penetration_depth = 0.0 - lowest_y;
 
         // normal just points straight up always in world frame
@@ -665,6 +691,54 @@ namespace sim
         contact.contact_point = {surface_point.first, -contact.penetration_depth * 0.5};
 
         return true;
+    }
+
+    void Simulator::_render_frame()
+    {
+        if (!_render || !_window || !_window->isOpen())
+            return;
+
+        sf::Event event;
+        while (_window->pollEvent(event))
+        {
+            if (event.type == sf::Event::Closed)
+                _window->close();
+        }
+        _window->clear(sf::Color::White);
+        sf::View center_view;
+        center_view.setSize(_render_width * _render_scale, _render_height * _render_scale);
+        center_view.setCenter(0.0f, _render_height * _render_scale / 2.0); // force bottom center to be at (0, 0)
+        _window->setView(center_view);
+
+        for (const auto &link : _links)
+        {
+            if (link->type == LinkType::RECTANGLE)
+            {
+                sf::RectangleShape rect(sf::Vector2f(link->d1 * _render_scale, link->d2 * _render_scale));
+                rect.setOrigin(link->d1 * _render_scale / 2.0, link->d2 * _render_scale / 2.0);
+                float screen_x = std::get<0>(link->frame) * _render_scale;
+                float screen_y = (_render_height - std::get<1>(link->frame)) * _render_scale;
+                rect.setPosition(screen_x, screen_y);
+                rect.setRotation(-std::get<2>(link->frame) * 180.0 / M_PI); // negate since SFML rotates CW but my convention is CCW is pos
+                rect.setFillColor(sf::Color(230, 126, 34)); // Orange link body
+                rect.setOutlineColor(sf::Color::Black);
+                rect.setOutlineThickness(-2.f);
+                _window->draw(rect);
+            }
+            else if (link->type == LinkType::CIRCLE)
+            {
+                sf::CircleShape circle(link->d1 * _render_scale);
+                circle.setOrigin(link->d1 * _render_scale, link->d1 * _render_scale);
+                float screen_x = std::get<0>(link->frame) * _render_scale;
+                float screen_y = (_render_height - std::get<1>(link->frame)) * _render_scale;
+                circle.setPosition(screen_x, screen_y);
+                circle.setFillColor(sf::Color(230, 126, 34)); // Orange link body
+                circle.setOutlineColor(sf::Color::Black);
+                circle.setOutlineThickness(-2.f);
+                _window->draw(circle);
+            }
+        }
+        _window->display();
     }
 
 }
