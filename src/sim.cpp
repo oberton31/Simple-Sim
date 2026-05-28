@@ -135,6 +135,7 @@ namespace sim
                         link->name + "_base_joint", _world_link, link, base_offset, ControlType::POSITION, JointType::FLOATING);
                     _joints.push_back(base_joint);
                     _tf_tree[_world_link].push_back({link, base_joint});
+                    _base_links.push_back(link);
                 }
             }
 
@@ -213,27 +214,22 @@ namespace sim
         _fk();
     }
 
-    void Simulator::reset(std::vector<double> qpos, Frame base_link_pos)
+    void Simulator::reset(std::vector<double> qpos, std::vector<Frame> base_link_pos)
     {
         if (qpos.size() != static_cast<size_t>(_nu))
         {
             throw std::invalid_argument("Invalid number of joint positions provided.");
         }
-        Link *base_link = nullptr;
-        for (auto [link, joint] : _tf_tree[_world_link])
+
+        if (_base_links.size() != base_link_pos.size())
         {
-            if (joint->joint_type == JointType::FLOATING)
-            {
-                base_link = link;
-                break;
-            }
+            throw std::invalid_argument("Invalid number of base link positions provided.");
         }
-        if (base_link == nullptr)
+        for (size_t i = 0; i < _base_links.size(); i++)
         {
-            throw std::invalid_argument("No floating base link, cannot reset its position.");
+            _base_links[i]->frame = base_link_pos[i];
+            _base_links[i]->vel = {0.0, 0.0, 0.0};
         }
-        base_link->frame = base_link_pos;
-        base_link->vel = {0.0, 0.0, 0.0};
         for (size_t i = 0; i < qpos.size(); i++)
         {
             Joint *joint = _joint_id_map[i];
@@ -261,24 +257,16 @@ namespace sim
         _fk(); // make sure fk up to date
         std::vector<Contact> collisions = check_collisions();
 
-        Link *base_link = nullptr;
-        for (auto [link, joint] : _tf_tree[_world_link])
-        {
-            if (joint->joint_type == JointType::FLOATING)
-            {
-                base_link = link;
-                break;
-            }
-        }
 
         // if no floating base, state is just actuated joint positions. Else, state is floating base pose and actuated joints
-        int state_size = _nu + (base_link ? 3 : 0);
-        std::vector<double> tau(state_size, 0.0); // generalized forces for each 
+        int base_state_size = static_cast<int>(_base_links.size()) * 3;
+        int state_size = _nu + base_state_size;
+        std::vector<double> tau(state_size, 0.0); // generalized forcetorques for each actuated joint + floating base frame
 
         for (int i = 0; i < _nu; i++)
         {
             Joint *joint = _joint_id_map[i];
-            int tau_idx = (base_link ? 3 : 0) + i;
+            int tau_idx = base_state_size + i;
             if (joint->control_type == ControlType::FORCETORQUE)
             {
                 tau[tau_idx] = joint->ctrl;
@@ -293,6 +281,13 @@ namespace sim
 
         // Next up: using Newton-Euler to solve for actuated joint accelerations based on contact forces + gravity
         // if actuated based, then we need to also solve for its accelerations
+
+
+        _fk(); // update based on new link pos
+        if (_render)
+        {
+            _render_frame();
+        }
     }
 
     Simulator::~Simulator()

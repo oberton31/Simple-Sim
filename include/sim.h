@@ -62,7 +62,7 @@ namespace sim
         std::string name;
 
         LinkType type;
-        Material material; // TODO: when adding dynamics, change this to be material, and then use density to calc mass.
+        Material material;
 
         double d1; // for rectangle, this is width, for circle this is radius
         double d2;
@@ -161,7 +161,7 @@ namespace sim
 
         void set_control(std::vector<double> ctrl);
         void reset(std::vector<double> qpos);
-        void reset(std::vector<double> qpos, Frame base_link_pos);
+        void reset(std::vector<double> qpos, std::vector<Frame> base_link_pos);
         // void reset(std::vector<double> qpos, std::vector<double> qvel);
 
         // moving here for testing. Move back in end
@@ -175,6 +175,7 @@ namespace sim
         std::set<std::pair<Link *, Link *>> _connected_links; // use set since can hash pairs. Keeps track of connected links so we avoid during collision checking
 
         Link *_world_link; // special link representing world frame
+        std::vector<Link*> _base_links; // base links are all links connected to world through a floating joint. Can be more than one as there can be multiple robots
         int _nu;           // number of actuated joints
 
         std::unordered_map<int, Joint *> _joint_id_map; // map joint pointer to index such that we can index into qpos, qvel, ctrl
