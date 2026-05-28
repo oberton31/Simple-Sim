@@ -22,7 +22,7 @@ namespace sim
         }
 
         std::unordered_map<std::string, Link *> link_map;
-        _world_link = new Link("world", LinkType::RECTANGLE, 0.0, 0.0, 0.0);
+        _world_link = new Link("world", LinkType::RECTANGLE, Material::PLASTIC, 0.0, 0.0);
         _world_link->frame = {0.0, 0.0, 0.0};
         link_map["world"] = _world_link;
 
@@ -36,10 +36,10 @@ namespace sim
                 {
                     std::string name = link_json.at("name").get<std::string>();
                     LinkType type = _string_to_link_type(link_json.at("type"));
-                    double mass = link_json.at("mass").get<double>();
+                    Material material = _string_to_material_type(link_json.at("material"));
                     double d1 = link_json.value("d1", 0.0);
                     double d2 = link_json.value("d2", 0.0);
-                    Link *new_link = new Link(name, type, mass, d1, d2);
+                    Link *new_link = new Link(name, type, material, d1, d2);
                     _links.push_back(new_link);
                     link_map[name] = new_link;
                 }
@@ -93,6 +93,10 @@ namespace sim
                     }
                     else
                     {
+                        if (ctrl_type == ControlType::POSITION)
+                        {
+                            throw std::invalid_argument("For position control, must specify kp and kd.");
+                        }
                         new_joint = new Joint(
                             name, parent_ptr, child_ptr, offset, ctrl_type, j_type, limit_min, limit_max);
                     }
@@ -137,7 +141,7 @@ namespace sim
             std::cout << "Model structure built successfully with " << _links.size() << " links, " << _joints.size() << " joints, and " << _nu << " actuated joint(s)." << std::endl;
             for (const auto &link : _links)
             {
-                std::cout << "    Link: " << link->name << ", Type: " << (link->type == LinkType::RECTANGLE ? "Rectangle" : "Circle") << ", Mass: " << link->mass << std::endl;
+                std::cout << "    Link: " << link->name << ", Type: " << (link->type == LinkType::RECTANGLE ? "Rectangle" : "Circle") << ", Material: " << (link->material == Material::METAL ? "Metal" : "Plastic") << std::endl;
             }
             for (const auto &joint : _joints)
             {
@@ -190,12 +194,11 @@ namespace sim
             if (!_connected_links.count({link, _world_link}) && _check_world_collision(link, c))
                 contacts.push_back(c);
         }
-        // check for contacts with world link
 
         return contacts;
     }
 
-    void Simulator::reset(std::vector<double> qpos)
+    void Simulator::reset(std::vector<double> qpos) // TODO: need to be able to reset positions as well
     {
         if (qpos.size() != static_cast<size_t>(_nu))
         {
@@ -205,8 +208,91 @@ namespace sim
         {
             Joint *joint = _joint_id_map[i];
             joint->qpos = qpos[i];
+            joint->qvel = 0;
         }
         _fk();
+    }
+
+    void Simulator::reset(std::vector<double> qpos, Frame base_link_pos)
+    {
+        if (qpos.size() != static_cast<size_t>(_nu))
+        {
+            throw std::invalid_argument("Invalid number of joint positions provided.");
+        }
+        Link *base_link = nullptr;
+        for (auto [link, joint] : _tf_tree[_world_link])
+        {
+            if (joint->joint_type == JointType::FLOATING)
+            {
+                base_link = link;
+                break;
+            }
+        }
+        if (base_link == nullptr)
+        {
+            throw std::invalid_argument("No floating base link, cannot reset its position.");
+        }
+        base_link->frame = base_link_pos;
+        base_link->vel = {0.0, 0.0, 0.0};
+        for (size_t i = 0; i < qpos.size(); i++)
+        {
+            Joint *joint = _joint_id_map[i];
+            joint->qpos = qpos[i];
+            joint->qvel = 0;
+        }
+        _fk();
+    }
+
+    void Simulator::set_control(std::vector<double> ctrl)
+    {
+        if (ctrl.size() != static_cast<size_t>(_nu))
+        {
+            throw std::invalid_argument("Invalid number of control inputs provided.");
+        }
+        for (size_t i = 0; i < ctrl.size(); i++)
+        {
+            Joint *joint = _joint_id_map[i];
+            joint->ctrl = ctrl[i];
+        }
+    }
+
+    void Simulator::step(double dt)
+    {
+        _fk(); // make sure fk up to date
+        std::vector<Contact> collisions = check_collisions();
+
+        Link *base_link = nullptr;
+        for (auto [link, joint] : _tf_tree[_world_link])
+        {
+            if (joint->joint_type == JointType::FLOATING)
+            {
+                base_link = link;
+                break;
+            }
+        }
+
+        // if no floating base, state is just actuated joint positions. Else, state is floating base pose and actuated joints
+        int state_size = _nu + (base_link ? 3 : 0);
+        std::vector<double> tau(state_size, 0.0); // generalized forces for each 
+
+        for (int i = 0; i < _nu; i++)
+        {
+            Joint *joint = _joint_id_map[i];
+            int tau_idx = (base_link ? 3 : 0) + i;
+            if (joint->control_type == ControlType::FORCETORQUE)
+            {
+                tau[tau_idx] = joint->ctrl;
+            }
+            else
+            {
+                double e = joint->ctrl - joint->qpos;
+                double de = 0 - joint->qvel;
+                tau[tau_idx] = joint->kp * (e) + joint->kd * (de);
+            }
+        }
+
+        // Next up: using Newton-Euler to solve for actuated joint accelerations based on contact forces + gravity
+        // if actuated based, then we need to also solve for its accelerations
     }
 
     Simulator::~Simulator()
@@ -695,6 +781,7 @@ namespace sim
 
     void Simulator::_render_frame()
     {
+        // SFML has (0, 0) at top left
         if (!_render || !_window || !_window->isOpen())
             return;
 
@@ -720,7 +807,7 @@ namespace sim
                 float screen_y = (_render_height - std::get<1>(link->frame)) * _render_scale;
                 rect.setPosition(screen_x, screen_y);
                 rect.setRotation(-std::get<2>(link->frame) * 180.0 / M_PI); // negate since SFML rotates CW but my convention is CCW is pos
-                rect.setFillColor(sf::Color(230, 126, 34)); // Orange link body
+                rect.setFillColor(sf::Color(230, 126, 34));                 // orange link body: maybe make configurable in the future
                 rect.setOutlineColor(sf::Color::Black);
                 rect.setOutlineThickness(-2.f);
                 _window->draw(rect);
@@ -732,7 +819,7 @@ namespace sim
                 float screen_x = std::get<0>(link->frame) * _render_scale;
                 float screen_y = (_render_height - std::get<1>(link->frame)) * _render_scale;
                 circle.setPosition(screen_x, screen_y);
-                circle.setFillColor(sf::Color(230, 126, 34)); // Orange link body
+                circle.setFillColor(sf::Color(230, 126, 34));
                 circle.setOutlineColor(sf::Color::Black);
                 circle.setOutlineThickness(-2.f);
                 _window->draw(circle);

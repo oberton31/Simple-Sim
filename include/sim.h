@@ -48,6 +48,12 @@ namespace sim
         FLOATING
     };
 
+    enum class Material
+    {
+        PLASTIC,
+        METAL
+    };
+
     // later, need to be able to add objects. These will be unactuated and have no joints, but will be of the same types as links
 
     // TODO: in future, want to be able to manually specify links to ignore during collision checking (for example, two legs that need to swing by eachother)
@@ -56,15 +62,16 @@ namespace sim
         std::string name;
 
         LinkType type;
-        double mass; // TODO: when adding dynamics, change this to be material, and then use density to calc mass.
+        Material material; // TODO: when adding dynamics, change this to be material, and then use density to calc mass.
 
         double d1; // for rectangle, this is width, for circle this is radius
         double d2;
 
         Frame frame; // current pos and orientation of link in world frame
+        Frame vel; // current velocity of link in world frame
 
-        Link(std::string name_, LinkType type_, double mass_, double d1_, double d2_)
-            : name(name_), type(type_), mass(mass_)
+        Link(std::string name_, LinkType type_, Material material_, double d1_, double d2_)
+            : name(name_), type(type_), material(material_)
         {
             if (type == LinkType::RECTANGLE)
             {
@@ -78,8 +85,8 @@ namespace sim
             }
             frame = {0.0, 0.0, 0.0};
         }
-        Link(std::string name_, LinkType type_, double mass_, double d1_)
-            : name(name_), type(type_), mass(mass_)
+        Link(std::string name_, LinkType type_, Material material_, double d1_)
+            : name(name_), type(type_), material(material_)
         {
             if (type == LinkType::RECTANGLE)
             {
@@ -142,7 +149,7 @@ namespace sim
     {
     public:
         // render width and height: meters, render scale: how many pixels per meter
-        Simulator(std::string scene_file, bool render, double render_width=10.0, double render_height=5.0, double render_scale = 100);
+        Simulator(std::string scene_file, bool render, double render_width = 10.0, double render_height = 5.0, double render_scale = 100);
         ~Simulator();
 
         // PUBLIC API
@@ -150,9 +157,11 @@ namespace sim
         // std::vector<Contact> check_collisions(std::vector<double> qpos); // arbitrary angles, could be useful for ppl doing collision checking stuff
 
         const int nu() const { return _nu; }
-        // void step(double dt); // updates sim
-        // void set_control(std::vector<double> ctrl);
+        void step(double dt); // updates sim
+
+        void set_control(std::vector<double> ctrl);
         void reset(std::vector<double> qpos);
+        void reset(std::vector<double> qpos, Frame base_link_pos);
         // void reset(std::vector<double> qpos, std::vector<double> qvel);
 
         // moving here for testing. Move back in end
@@ -192,6 +201,16 @@ namespace sim
                 return LinkType::CIRCLE;
             else
                 throw std::runtime_error("Invalid link type: " + type_str);
+        }
+
+        inline Material _string_to_material_type(const std::string &type_str)
+        {
+            if (type_str == "plastic" || type_str == "PLASTIC")
+                return Material::PLASTIC;
+            else if (type_str == "metal" || type_str == "METAL")
+                return Material::METAL;
+            else
+                throw std::runtime_error("Invalid material type: " + type_str);
         }
 
         inline JointType _string_to_joint_type(const std::string &type_str)

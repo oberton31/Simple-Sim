@@ -3,14 +3,14 @@
     {
       "name": "link1",
       "type": "RECTANGLE",
-      "mass": 2.0,
+      "material": "METAL",
       "d1": 1.0,
       "d2": 0.1
     },
     {
       "name": "link2",
       "type": "RECTANGLE",
-      "mass": 1.5,
+      "material": "METAL",
       "d1": 0.8,
       "d2": 0.1
     },
