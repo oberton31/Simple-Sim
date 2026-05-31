@@ -3,23 +3,23 @@
     {
       "name": "link1",
       "type": "RECTANGLE",
-      "material": "METAL",
+      "material": "PLASTIC",
       "d1": 1.0,
-      "d2": 0.1
+      "d2": 0.02
     },
     {
       "name": "link2",
       "type": "RECTANGLE",
-      "material": "METAL",
+      "material": "PLASTIC",
       "d1": 0.8,
-      "d2": 0.1
+      "d2": 0.02
     },
     {
       "name": "link3",
       "type": "RECTANGLE",
-      "mass": 1.5,
+      "material": "PLASTIC",
       "d1": 0.5,
-      "d2": 0.1
+      "d2": 0.02
     }
   ],
   "joints": [
@@ -36,8 +36,8 @@
       },
       "limit_min": -3.14,
       "limit_max": 3.14,
-      "kp": 400.0,
-      "kd": 40.0
+      "kp": 5.0,
+      "kd": 0.5
     },
     {
       "name": "elbow_joint",
@@ -50,10 +50,10 @@
         "y": 0.0,
         "theta": 0.0
       },
-      "limit_min": -2.57,
-      "limit_max": 2.57,
-      "kp": 300.0,
-      "kd": 30.0
+      "limit_min": -3.14,
+      "limit_max": 3.14,
+      "kp": 2.0,
+      "kd": 0.1
     },
     {
       "name": "wrist_joint",
@@ -66,10 +66,10 @@
         "y": 0.0,
         "theta": 0.0
       },
-      "limit_min": -2.57,
-      "limit_max": 2.57,
-      "kp": 300.0,
-      "kd": 30.0
+      "limit_min": -3.14,
+      "limit_max": 3.14,
+      "kp": 1.0,
+      "kd": 0.05
     }
   ]
 }

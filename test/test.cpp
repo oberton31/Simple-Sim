@@ -6,7 +6,9 @@
 int main()
 {
     sim::Simulator eng("scene.json", true, 10, 5, 100);
-    eng.reset({M_PI / 4, -M_PI / 4, M_PI / 4});
+    eng.reset({M_PI / 2, 0, 0});
+    // eng.reset({0, 0}, {{0, 0.5, 0}});
+    eng.set_control({M_PI / 4, 0, 0});
     auto c = eng.check_collisions();
     for (const auto &contact : c)
     {
@@ -18,7 +20,7 @@ int main()
     }
     while (true)
     {
-        eng._render_frame();
+        eng.step(0.001);
     }
 
     return 0;

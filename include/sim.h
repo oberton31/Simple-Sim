@@ -67,8 +67,11 @@ namespace sim
         double d1; // for rectangle, this is width, for circle this is radius
         double d2;
 
+        double mass = 0.0;
+        double inertia = 0.0;
+
         Frame frame; // current pos and orientation of link in world frame
-        Frame vel; // current velocity of link in world frame
+        Frame vel;   // current velocity of link in world frame
 
         Link(std::string name_, LinkType type_, Material material_, double d1_, double d2_)
             : name(name_), type(type_), material(material_)
@@ -154,7 +157,7 @@ namespace sim
 
         // PUBLIC API
         std::vector<Contact> check_collisions();
-        // std::vector<Contact> check_collisions(std::vector<double> qpos); // arbitrary angles, could be useful for ppl doing collision checking stuff
+        // std::vector<Contact> check_collisions(std::vector<double> qpos, std::vector<Frame> base_link_pos); // arbitrary angles, could be useful for ppl doing collision checking stuff
 
         const int nu() const { return _nu; }
         void step(double dt); // updates sim
@@ -174,9 +177,9 @@ namespace sim
         std::vector<Joint *> _joints;
         std::set<std::pair<Link *, Link *>> _connected_links; // use set since can hash pairs. Keeps track of connected links so we avoid during collision checking
 
-        Link *_world_link; // special link representing world frame
-        std::vector<Link*> _base_links; // base links are all links connected to world through a floating joint. Can be more than one as there can be multiple robots
-        int _nu;           // number of actuated joints
+        Link *_world_link;               // special link representing world frame
+        std::vector<Link *> _base_links; // base links are all links connected to world through a floating joint. Can be more than one as there can be multiple robots
+        int _nu = 0;                     // number of actuated joints
 
         std::unordered_map<int, Joint *> _joint_id_map; // map joint pointer to index such that we can index into qpos, qvel, ctrl
 
@@ -191,6 +194,13 @@ namespace sim
         bool _circle_circle_collision_check(Link *link_a, Link *link_b, Contact &contact);
         bool _rectangle_circle_collision_check(Link *link_a, Link *link_b, Contact &contact);
         bool _check_world_collision(Link *link, Contact &contact);
+
+        double _subtree_inertia(Joint *joint);
+        double _subtree_gravity_torque(Joint *joint);
+
+        void _accumulate_contact_torques(
+            const std::vector<Contact> &contacts,
+            std::vector<double> &tau_contact);
 
         std::pair<double, double> _transform_point(std::pair<double, double> point, Frame transform);
 
